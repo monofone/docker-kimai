@@ -1,0 +1,24 @@
+version: "3"
+
+services:
+  kimai:
+    image: kimai
+    ports:
+      - 8090:80
+    environment:
+      - KIMAI_MYSQL_HOSTNAME=db
+      - KIMAI_MYSQL_DATABASE=kimai
+      - KIMAI_MYSQL_USERNAME=root
+      - KIMAI_MYSQL_PASSWORD=password
+      - KIMAI_SALT=rBPg0PZHSUzYZLKbiqRSY
+      # TODO Remove for deployment
+      # - TYPO3_CONTEXT=Development
+      - KIMAI_RECREATE_FIXTURES=1
+    links:
+      - db
+
+  db:
+    image: mysql:5.7
+    environment:
+    - MYSQL_DATABASE=kimai
+    - MYSQL_ROOT_PASSWORD=password

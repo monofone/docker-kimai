@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+cd /var/www/html
+
+TIMEOUT=100 wait-for-it.sh $KIMAI_MYSQL_HOSTNAME:3306
+
+echo "Running as $(whoami)"
+
+if [ ! -f ".initialized" ]; then
+echo "Setting up Kimai..."
+    mkdir -p include
+cat << EOF > includes/autoconf.php
+<?php
+\$server_hostname = "${KIMAI_MYSQL_HOSTNAME}";
+\$server_database = "${KIMAI_MYSQL_DATABASE}";
+\$server_username = "${KIMAI_MYSQL_USERNAME}";
+\$server_password = "${KIMAI_MYSQL_PASSWORD}";
+\$server_prefix   = "kimai_";
+\$language        = "en";
+\$password_salt   = "${KIMAI_SALT}";
+\$defaultTimezone = "UTC";
+\$skin            = "standard";
+\$authenticator   = "kimai";
+\$billable        = array (
+  0 => 0,
+  1 => 50,
+  2 => 100,
+);
+EOF
+	echo "DROP DATABASE $KIMAI_MYSQL_DATABASE; CREATE DATABASE ${KIMAI_MYSQL_DATABASE}" |\
+		mysql -h $KIMAI_MYSQL_HOSTNAME -u $KIMAI_MYSQL_USERNAME -p$KIMAI_MYSQL_PASSWORD $KIMAI_MYSQL_DATABASE
+	echo "Importing Kimai fixtures..."
+	cat /root/kimai_dump.sql |\
+		mysql -h $KIMAI_MYSQL_HOSTNAME -u $KIMAI_MYSQL_USERNAME -p$KIMAI_MYSQL_PASSWORD $KIMAI_MYSQL_DATABASE
+    echo "Setting up initial stuff"
+    
+    php /var/www/html/setup.php
+    rm -rf installer
+
+    touch .initialized
+fi
+
+# first arg is `-f` or `--some-option`
+if [ "${1#-}" != "$1" ]; then
+	set -- apache2-foreground "$@"
+fi
+
+exec "$@"
